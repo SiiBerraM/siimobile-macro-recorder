@@ -73,7 +73,7 @@ jobs:
           grep -c "MacroAccessibilityService" $M
       - name: Build release APK
         working-directory: SiiMobile/android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: SiiMobile-APK
