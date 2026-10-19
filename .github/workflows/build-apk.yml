@@ -29,7 +29,52 @@ jobs:
       - name: Patch manifest and MainApplication
         working-directory: SiiMobile
         run: |
-          python3 - <<'PY'
-          m = 'android/app/src/main/AndroidManifest.xml'
-          s = open(m).read()
-          perms = ''.join('<uses-permission android:name="android.permission.%s"/>'
+          M=android/app/src/main/AndroidManifest.xml
+          A=android/app/src/main/java/com/siimobile/MainApplication.kt
+          printf '%s\n' \
+            '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>' \
+            '<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>' \
+            '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>' \
+            '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' \
+            > perms.xml
+          printf '%s\n' \
+            '<service android:name=".macro.MacroAccessibilityService"' \
+            ' android:exported="false"' \
+            ' android:label="@string/app_name"' \
+            ' android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">' \
+            '<intent-filter>' \
+            '<action android:name="android.accessibilityservice.AccessibilityService"/>' \
+            '</intent-filter>' \
+            '<meta-data android:name="android.accessibilityservice"' \
+            ' android:resource="@xml/accessibility_service_config"/>' \
+            '</service>' \
+            '<service android:name=".macro.RecorderOverlayService"' \
+            ' android:exported="false"' \
+            ' android:foregroundServiceType="specialUse">' \
+            '<property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"' \
+            ' android:value="macro recording overlay"/>' \
+            '</service>' \
+            '<service android:name=".macro.AutomationForegroundService"' \
+            ' android:exported="false"' \
+            ' android:foregroundServiceType="specialUse">' \
+            '<property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"' \
+            ' android:value="macro playback"/>' \
+            '</service>' \
+            '<receiver android:name=".macro.StopReceiver" android:exported="false">' \
+            '<intent-filter>' \
+            '<action android:name="com.siimobile.macro.STOP_ALL"/>' \
+            '</intent-filter>' \
+            '</receiver>' \
+            > frag.xml
+          sed -i '/<application/e cat perms.xml' $M
+          sed -i '/<\/application>/e cat frag.xml' $M
+          sed -i 's|PackageList(this).packages.apply {|&\n add(com.siimobile.macro.MacroPackage())|' $A
+          grep -n "MacroPackage" $A
+          grep -c "MacroAccessibilityService" $M
+      - name: Build release APK
+        working-directory: SiiMobile/android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SiiMobile-APK
+          path: SiiMobile/android/app/build/outputs/apk/release/app-release.apk
